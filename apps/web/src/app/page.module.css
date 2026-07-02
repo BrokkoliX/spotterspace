@@ -12,14 +12,19 @@
 
 /* Tall variant — used when a random hero photo has loaded. The image
    is set as the element's background-image inline; we only adjust the
-   geometry and overlay strength here. */
+   geometry and overlay strength here.
+
+   360px desktop / 240px mobile keeps a 3:2 photo's visible vertical
+   band at ~32% of its original height (vs ~22% at 420px), so the
+   subject — usually in the upper-middle of an aviation shot — stays
+   in frame. */
 .heroTall {
-  height: 420px;
+  height: 360px;
 }
 
 @media (max-width: 767px) {
   .heroTall {
-    height: 280px;
+    height: 240px;
   }
 }
 

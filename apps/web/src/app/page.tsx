@@ -893,7 +893,14 @@ export default function HomePage() {
             ? {
                 backgroundImage: `url(${heroBackgroundUrl})`,
                 backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                // Bias the focal point to the upper-middle of the photo:
+                // the aircraft typically sits in the upper third of an
+                // aviation shot, with sky above and ground below, so
+                // centering on the geometric middle wastes the visible
+                // band on tarmac/grass. 50% horizontal / 40% vertical
+                // pushes the subject up into view for both landscape
+                // and (less common) portrait sources.
+                backgroundPosition: 'center 40%',
               }
             : undefined
         }

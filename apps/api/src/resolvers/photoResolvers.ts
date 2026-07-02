@@ -390,7 +390,14 @@ export const photoQueryResolvers = {
     // surface, and community photos belong inside their community
     // context (mirrors the default applied in the `photos` resolver
     // for unscoped queries).
-    const where = {
+    //
+    // When called for the hero banner (an `awardSlug` is supplied), we
+    // additionally need a landscape, reasonably-wide photo. The hero is
+    // a full-width × ~360px-tall band — a portrait photo crops to a
+    // thin vertical slice with `cover`, hiding the subject. We push
+    // the size minimum to the DB (cheaper) and the orientation check
+    // to JS (Prisma can't compare two columns in a plain where).
+    const baseWhere = {
       moderationStatus: 'approved' as const,
       isDeleted: false,
       kind: 'AIRCRAFT' as const,
@@ -399,30 +406,59 @@ export const photoQueryResolvers = {
             awardedBadges: {
               some: { badgeDefinition: { slug: args.awardSlug, isActive: true } },
             },
+            originalWidth: { not: null, gte: 1600 },
+            originalHeight: { not: null },
           }
         : {}),
     };
-    const total = await ctx.prisma.photo.count({ where });
+    const total = await ctx.prisma.photo.count({ where: baseWhere });
     if (total === 0) return null;
-    const offset = Math.floor(Math.random() * total);
-    return ctx.prisma.photo.findFirst({
-      where,
-      // Stable ordering required so OFFSET is deterministic for the
-      // duration of one request. createdAt has an index, so this is
-      // an index scan, not a full sort.
-      orderBy: { createdAt: 'desc' },
-      skip: offset,
-      include: {
-        user: true,
-        variants: true,
-        tags: true,
-        aircraft: {
-          include: { manufacturer: true, family: true, variant: true, airlineRef: true },
-        },
-        location: { include: { airport: true, spottingLocation: true } },
-        photoCategory: true,
-        aircraftSpecificCategory: true,
+    const include = {
+      user: true,
+      variants: true,
+      tags: true,
+      aircraft: {
+        include: { manufacturer: true, family: true, variant: true, airlineRef: true },
       },
+      location: { include: { airport: true, spottingLocation: true } },
+      photoCategory: true,
+      aircraftSpecificCategory: true,
+    };
+    // For the hero (awardSlug set) we re-pick a few times if our
+    // random offset lands on a portrait photo. Bounded retries keep
+    // the worst case cheap — on a 100% landscape corpus this is one
+    // query; on a sparse dataset it falls through to whatever the
+    // last pick was, then filters to landscape again as a hard cap.
+    const maxAttempts = args.awardSlug ? 6 : 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const offset = Math.floor(Math.random() * total);
+      const candidate = await ctx.prisma.photo.findFirst({
+        where: baseWhere,
+        // Stable ordering required so OFFSET is deterministic for the
+        // duration of one request. createdAt has an index, so this is
+        // an index scan, not a full sort.
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        include,
+      });
+      if (!candidate) return null;
+      if (!args.awardSlug) return candidate;
+      if (
+        candidate.originalWidth != null &&
+        candidate.originalHeight != null &&
+        candidate.originalWidth > candidate.originalHeight
+      ) {
+        return candidate;
+      }
+    }
+    // All attempts hit portrait photos. Return the last candidate so
+    // the hero at least shows something rather than falling back to
+    // the site banner.
+    return ctx.prisma.photo.findFirst({
+      where: baseWhere,
+      orderBy: { createdAt: 'desc' },
+      skip: Math.floor(Math.random() * total),
+      include,
     });
   },
 
