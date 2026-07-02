@@ -236,14 +236,22 @@ export default function HomePage() {
     requestPolicy: 'network-only',
   });
   const heroPhoto = randomPhotoData?.randomPhoto as PhotoData | null | undefined;
+  // Hero variant ladder, best → worst:
+  //   1. display       — 2048px on the long edge, sharp at hero size
+  //   2. thumbnail_16x9 — 640px wide 16:9 crop, purpose-built for hero/feed
+  //                       display. Used when a photo is missing its display
+  //                       variant (older uploads, or variant gen failure).
+  //   3. originalUrl   — last resort; bypasses any CDN-cached variant.
+  // We deliberately skip the square 150px `thumbnail` variant — it's far too
+  // small to render at hero size and looks pixelated.
   const heroDisplayVariant = heroPhoto?.variants?.find(
     (v: { variantType: string }) => v.variantType === 'display',
   );
-  const heroFallbackVariant = heroPhoto?.variants?.find(
-    (v: { variantType: string }) => v.variantType === 'thumbnail',
+  const hero16x9Variant = heroPhoto?.variants?.find(
+    (v: { variantType: string }) => v.variantType === 'thumbnail_16x9',
   );
   const heroImageUrl =
-    heroDisplayVariant?.url ?? heroFallbackVariant?.url ?? heroPhoto?.originalUrl ?? null;
+    heroDisplayVariant?.url ?? hero16x9Variant?.url ?? heroPhoto?.originalUrl ?? null;
 
   const siteBannerUrl = siteData?.siteSettings?.bannerUrl;
   const siteTagline = siteData?.siteSettings?.tagline;
