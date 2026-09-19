@@ -103,7 +103,55 @@ function getTableList(): string {
 export async function cleanDatabase(): Promise<void> {
   const tables = getTableList();
   if (!tables) return;
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE;`);
+  await waitForBackgroundWrites();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE;`);
+      return;
+    } catch (err) {
+      if (!isDeadlock(err) || attempt >= MAX_TRUNCATE_ATTEMPTS) throw err;
+      await sleep(50 * attempt);
+    }
+  }
+}
+
+// ─── Background-write settling ────────────────────────────────────────────────
+// Several mutations deliberately fire writes without awaiting them — most
+// notably createNotification(). Such a write can still be in flight when the
+// next test's cleanDatabase() runs, and TRUNCATE's AccessExclusiveLock then
+// deadlocks with the insert's RowShareLock (Postgres 40P01). That surfaced as
+// intermittent failures in whichever test happened to run next
+// (community.test.ts most often). So before truncating, wait for every other
+// session on the test database to go idle, and retry the TRUNCATE if a
+// deadlock still slips through.
+
+const MAX_TRUNCATE_ATTEMPTS = 5;
+const SETTLE_TIMEOUT_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isDeadlock(err: unknown): boolean {
+  return err instanceof Error && /\b40P01\b|deadlock detected/.test(err.message);
+}
+
+async function waitForBackgroundWrites(): Promise<void> {
+  // Yield once so fire-and-forget promises queued by the last test get to
+  // issue their query before we look for it.
+  await new Promise((resolve) => setImmediate(resolve));
+  const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const [{ busy }] = await prisma.$queryRaw<{ busy: bigint }[]>`
+      SELECT count(*) AS busy
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+        AND pid <> pg_backend_pid()
+        AND backend_type = 'client backend'
+        AND state <> 'idle'`;
+    if (busy === 0n) return;
+    await sleep(20);
+  }
 }
 
 export { prisma };
