@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Context } from '../context.js';
 
 import {
@@ -199,10 +198,21 @@ async function createUsers() {
 describe('adminStats', () => {
   it('returns platform statistics for admin', async () => {
     const { regular } = await createUsers();
+    // `totalPhotos` counts only approved, non-deleted photos while
+    // `pendingPhotos` counts pending ones, so seed one of each — a single
+    // pending photo would leave totalPhotos asserting against zero.
     await prisma.photo.create({
       data: {
         userId: regular.id,
-        originalUrl: 'http://localhost:4566/test.jpg',
+        originalUrl: 'http://localhost:4566/approved.jpg',
+        mimeType: 'image/jpeg',
+        moderationStatus: 'approved',
+      },
+    });
+    await prisma.photo.create({
+      data: {
+        userId: regular.id,
+        originalUrl: 'http://localhost:4566/pending.jpg',
         mimeType: 'image/jpeg',
         moderationStatus: 'pending',
       },
@@ -571,7 +581,7 @@ describe('adminUsers', () => {
     expect(data.adminUsers.edges[0].node.email).toBe('user@test.com');
   });
 
-  it('rejects admin role', async () => {
+  it('allows admin role', async () => {
     await createUsers();
 
     const res = await server.executeOperation(
@@ -579,8 +589,8 @@ describe('adminUsers', () => {
       ctx(ADMIN_USER),
     );
 
-    const errors = (res.body as any).singleResult.errors;
-    expect(errors[0].extensions.code).toBe('FORBIDDEN');
+    expect((res.body as any).singleResult.errors).toBeUndefined();
+    expect((res.body as any).singleResult.data.adminUsers.edges.length).toBeGreaterThan(0);
   });
 
   it('rejects moderator role', async () => {
@@ -633,7 +643,7 @@ describe('adminUserById', () => {
     expect(data.adminUserById.tier.slug).toBe('free');
   });
 
-  it('rejects admin role', async () => {
+  it('allows admin role', async () => {
     const { regular } = await createUsers();
 
     const res = await server.executeOperation(
@@ -641,8 +651,8 @@ describe('adminUserById', () => {
       ctx(ADMIN_USER),
     );
 
-    const errors = (res.body as any).singleResult.errors;
-    expect(errors[0].extensions.code).toBe('FORBIDDEN');
+    expect((res.body as any).singleResult.errors).toBeUndefined();
+    expect((res.body as any).singleResult.data.adminUserById.email).toBe('user@test.com');
   });
 
   it('returns NOT_FOUND for unknown user id', async () => {
