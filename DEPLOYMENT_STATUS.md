@@ -610,6 +610,27 @@ aws ecr put-lifecycle-policy --repository-name spotterspace-dev-api \
   --lifecycle-policy-text '{"rules":[{"rulePriority":1,"description":"Keep last 10 images","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":10},"action":{"type":"expire"}}]}'
 ```
 
+### Cost Reductions (2026-09-19)
+
+The account was running at roughly $190/month including tax, and about $155 of
+that continued while the site was paused — nearly all of it fixed
+infrastructure. Applied, in order of size:
+
+| Change                                                                        | Saves/mo | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deleted the Secrets Manager interface VPC endpoint (`vpce-05caf013ed865f8de`) | $14.88   | Redundant: the private subnets already egress through the NAT gateway, which is how ECR image pulls work. Secrets Manager now resolves to its public endpoint and is reached over the NAT — still TLS, still IAM-authorised. It was created out-of-band on 2026-04-11 and was NOT in the CloudFormation stack (CDK only creates it when `enableVpcEndpoints` is true, which it is not).                                                                                                                                                                                                                                             |
+| Disabled ECS Container Insights on `spotterspace-cluster`                     | ~$13     | **`spotterspace-dev-orphan-fargate-tasks` is now blind.** Its metric (`ECS/ContainerInsights TaskCount`) is no longer published, and because the alarm treats missing data as `notBreaching` it will sit at OK forever rather than alerting. The alarm was deliberately left in place so re-enabling Container Insights restores it instantly (`aws ecs update-cluster-settings --cluster spotterspace-cluster --settings name=containerInsights,value=enabled --region us-east-1`). The four ALB-metric alarms (no-healthy-hosts, unhealthy-hosts) are unaffected. Cover the zombie-task risk with AWS Budgets thresholds instead. |
+| `spotterhub-db` is no longer publicly accessible                              | $3.60    | It held a public IPv4 address, but its security group only ever admitted two internal security groups, so nothing could connect from the internet. Applications connect over the VPC's private address and were unaffected — verified live during the change.                                                                                                                                                                                                                                                                                                                                                                       |
+
+Also shut down on the same day: the unrelated **Wordmaster** project in this
+account (EC2 `wordmaster-backend` stopped, `wordmaster-db` deleted after the
+manual snapshot `wordmaster-db-final-2026-09-19`), for about $33/month.
+
+Still on the table, not applied: removing the NAT gateway (~$30/month net) by
+moving the ECS tasks into the existing public subnets with their own public
+IPs. That requires splitting the security group first — the ALB and the tasks
+currently share `sg-08e5864c53710a095`, which allows 80/443 from anywhere.
+
 ### CDK Drift Warning
 
 > **Do not run `cdk deploy` without first running `cdk diff` and reviewing every change.** Reconciled on 2026-05-24: HTTP/web/API listener actions in CDK source now use `forward` (matching live), `WEB_BASE_URL` env var removed from the web task definition (it never reached prod because GitHub Actions copies env from previous task def revisions), and the CloudWatch Alarms section was added to CDK. After reconciliation `cdk diff` reports only image-tag deltas on `ApiTaskDef` and `WebTaskDef`, which is expected because CI manages task def images out-of-band via `aws ecs register-task-definition`.
