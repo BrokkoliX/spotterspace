@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // vitest 5 no longer excludes dist/ by default (see apps/api/vitest.config.ts)
+    exclude: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/.next/**'],
     setupFiles: ['./vitest.setup.ts'],
     passWithNoTests: true,
   },
