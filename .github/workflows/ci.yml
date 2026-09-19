@@ -64,10 +64,10 @@ jobs:
         env:
           PGPASSWORD: spotterspace_dev
         run: |
-          psql -h localhost -p 5432 -U spotterspace -d spotterspace 
-            -tc "SELECT 1 FROM pg_database WHERE datname = 'spotterspace_test'" 
-            | grep -q 1 
-            || psql -h localhost -p 5432 -U spotterspace -d spotterspace 
+          psql -h localhost -p 5432 -U spotterspace -d spotterspace \
+            -tc "SELECT 1 FROM pg_database WHERE datname = 'spotterspace_test'" \
+            | grep -q 1 \
+            || psql -h localhost -p 5432 -U spotterspace -d spotterspace \
                  -c "CREATE DATABASE spotterspace_test OWNER spotterspace"
 
       - name: Run Prisma migrations
