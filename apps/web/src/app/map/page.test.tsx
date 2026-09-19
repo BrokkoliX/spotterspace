@@ -13,8 +13,10 @@ export const mockMapInstance = {
   getBounds: vi.fn(() => ({
     getSouthWest: () => ({ lat: () => 47.0, lng: () => -123.0 }),
     getNorthEast: () => ({ lat: () => 48.0, lng: () => -122.0 }),
-    getWest: () => -123.0, getSouth: () => 47.0,
-    getEast: () => -122.0, getNorth: () => 48.0,
+    getWest: () => -123.0,
+    getSouth: () => 47.0,
+    getEast: () => -122.0,
+    getNorth: () => 48.0,
   })),
   getZoom: vi.fn(() => 2),
   flyTo: vi.fn(),
@@ -23,38 +25,45 @@ export const mockMapInstance = {
   _listeners: {} as Record<string, Array<(...args: unknown[]) => void>>,
 };
 
-vi.mock('mapbox-gl', async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
-  return {
-    ...actual,
-    default: {
-      ...(actual.default as Record<string, unknown>),
-      accessToken: 'pk.test-token',
-      Map: vi.fn(() => {
-        const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
-        mockMapInstance.on = vi.fn((event: string, cb: (...args: unknown[]) => void) => {
-          listeners[event] = listeners[event] ?? [];
-          listeners[event].push(cb);
-        });
-        mockMapInstance.off = vi.fn((event: string, cb: (...args: unknown[]) => void) => {
-          listeners[event] = (listeners[event] ?? []).filter(l => l !== cb);
-        });
-        mockMapInstance._listeners = listeners;
-        return mockMapInstance;
-      }),
-      Marker: vi.fn(() => ({
+// Self-contained mock — deliberately does NOT call importOriginal().
+// mapbox-gl is a WebGL library whose UMD bundle crashes when evaluated under
+// jsdom ("Cannot read properties of undefined (reading '_buffer')"). The app
+// only touches Map / Marker / Popup / NavigationControl / accessToken, all of
+// which are defined below, so pulling in the real module bought nothing.
+vi.mock('mapbox-gl', () => {
+  const mapboxMock = {
+    accessToken: 'pk.test-token',
+    Map: vi.fn(function () {
+      const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
+      mockMapInstance.on = vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+        listeners[event] = listeners[event] ?? [];
+        listeners[event].push(cb);
+      });
+      mockMapInstance.off = vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+        listeners[event] = (listeners[event] ?? []).filter((l) => l !== cb);
+      });
+      mockMapInstance._listeners = listeners;
+      return mockMapInstance;
+    }),
+    Marker: vi.fn(function () {
+      return {
         setLngLat: vi.fn().mockReturnThis(),
         setPopup: vi.fn().mockReturnThis(),
         addTo: vi.fn().mockReturnThis(),
         remove: vi.fn(),
-      })),
-      Popup: vi.fn(() => ({
+      };
+    }),
+    Popup: vi.fn(function () {
+      return {
         setHTML: vi.fn().mockReturnThis(),
         setMaxWidth: vi.fn().mockReturnThis(),
-      })),
-      NavigationControl: vi.fn(),
-    },
+      };
+    }),
+    NavigationControl: vi.fn(function () {
+      return {};
+    }),
   };
+  return { ...mapboxMock, default: mapboxMock };
 });
 
 vi.mock('mapbox-gl/dist/mapbox-gl.css', () => ({}));
