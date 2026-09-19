@@ -108,7 +108,6 @@ async function logModerationAction(
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await ctx.prisma.communityModerationLog.create({
     data: {
       communityId: params.communityId,

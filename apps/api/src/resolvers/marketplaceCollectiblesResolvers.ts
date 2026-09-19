@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from '../auth/requireAuth.js';
 import type { Context } from '../context.js';
 import { generateVariants } from '../services/imageProcessing.js';
 import { decodeCursor, encodeCursor } from '../utils/resolverHelpers.js';
+
 import { createNotification } from './notificationResolvers.js';
 
 function parseDecimal(value: unknown): string {

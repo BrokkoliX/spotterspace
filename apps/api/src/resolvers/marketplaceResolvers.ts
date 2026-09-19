@@ -3,8 +3,12 @@ import { GraphQLError } from 'graphql';
 
 import { requireAuth, requireRole } from '../auth/requireAuth.js';
 import type { Context } from '../context.js';
-import { createConnectAccount, createAccountOnboardingLink, createCheckoutSession } from '../services/stripe.js';
-import { decodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
+import {
+  createConnectAccount,
+  createAccountOnboardingLink,
+  createCheckoutSession,
+} from '../services/stripe.js';
+import { buildPaginationArgs } from '../utils/resolverHelpers.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -36,8 +40,8 @@ export const marketplaceQueryResolvers = {
       args.sortBy === 'price_asc'
         ? { listing: { priceUsd: 'asc' as const } }
         : args.sortBy === 'price_desc'
-        ? { listing: { priceUsd: 'desc' as const } }
-        : { createdAt: 'desc' as const };
+          ? { listing: { priceUsd: 'desc' as const } }
+          : { createdAt: 'desc' as const };
 
     if (args.after) {
       const cursorPhoto = await ctx.prisma.photo.findUnique({ where: { id: args.after } });
@@ -250,11 +254,7 @@ export const marketplaceMutationResolvers = {
     });
   },
 
-  approveSeller: async (
-    _parent: unknown,
-    args: { sellerProfileId: string },
-    ctx: Context,
-  ) => {
+  approveSeller: async (_parent: unknown, args: { sellerProfileId: string }, ctx: Context) => {
     requireRole(ctx, ['admin', 'superuser']);
 
     const profile = await ctx.prisma.sellerProfile.findUnique({
@@ -330,7 +330,9 @@ export const marketplaceMutationResolvers = {
     }
 
     // Upsert: try update first, then create
-    const existing = await ctx.prisma.photoListing.findUnique({ where: { photoId: args.input.photoId } });
+    const existing = await ctx.prisma.photoListing.findUnique({
+      where: { photoId: args.input.photoId },
+    });
 
     const listing = existing
       ? await ctx.prisma.photoListing.update({
@@ -390,7 +392,9 @@ export const marketplaceMutationResolvers = {
     if (!listing.active) throw new GraphQLError('Listing is not active');
     if (listing.photo.userId === user.id) throw new GraphQLError('Cannot buy your own photo');
 
-    const sellerProfile = await ctx.prisma.sellerProfile.findUnique({ where: { userId: listing.sellerId } });
+    const sellerProfile = await ctx.prisma.sellerProfile.findUnique({
+      where: { userId: listing.sellerId },
+    });
 
     const platformFeePercent = parseInt(process.env.PLATFORM_FEE_PERCENT ?? '20', 10);
     const priceUsd = Number(listing.priceUsd);

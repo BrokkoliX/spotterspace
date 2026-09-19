@@ -2,12 +2,8 @@ import { GraphQLError } from 'graphql';
 
 import { requireRole } from '../auth/requireAuth.js';
 import type { Context } from '../context.js';
-import {
-  decodeCursor,
-  encodeCursor,
-  getDbUser,
-  buildPaginationArgs,
-} from '../utils/resolverHelpers.js';
+import { encodeCursor, getDbUser, buildPaginationArgs } from '../utils/resolverHelpers.js';
+
 import { createNotification } from './notificationResolvers.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

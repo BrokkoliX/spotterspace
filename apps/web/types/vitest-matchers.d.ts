@@ -20,8 +20,14 @@
 import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers';
 
 declare module 'vitest' {
+  // The empty body and the `any` are both required: declaration merging needs
+  // the type parameter list to match vitest's `Matchers` exactly, and the
+  // element type jest-dom is matching against is genuinely unconstrained.
+  /* eslint-disable @typescript-eslint/no-empty-object-type, @typescript-eslint/no-explicit-any */
   interface Matchers<
     R extends void | Promise<void> = void | Promise<void>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     T = unknown,
   > extends TestingLibraryMatchers<any, R> {}
+  /* eslint-enable @typescript-eslint/no-empty-object-type, @typescript-eslint/no-explicit-any */
 }

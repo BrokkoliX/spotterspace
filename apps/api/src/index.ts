@@ -3,19 +3,19 @@ import 'dotenv/config';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express4';
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import helmet from 'helmet';
 import { prisma } from '@spotterspace/db';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import jwt from 'jsonwebtoken';
 
+import { constantTimeCompare, validateJwtSecret } from './auth/validateSecret.js';
 import { createContext, type Context } from './context.js';
 import { resolvers } from './resolvers.js';
 import { typeDefs } from './schema.js';
 import { ensureBucket } from './services/s3.js';
-import { constantTimeCompare, validateJwtSecret } from './auth/validateSecret.js';
 
 const PORT = parseInt(process.env.API_PORT ?? '4000', 10);
 
