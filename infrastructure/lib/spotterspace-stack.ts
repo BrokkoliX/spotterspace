@@ -256,32 +256,38 @@ export class SpotterSpaceStack extends Stack {
     // ─── ALB Listener (HTTP :80) ───────────────────────────────────────────
     // Created BEFORE ECS services so target groups are registered.
     //
-    // The :80 listener forwards directly to the web target group, with
-    // host-based rules forwarding api.* to the api target group and www.*
-    // to the web target group. CloudFront sits in front of www.* and
-    // upgrades to HTTPS for browser traffic. There is no listener-level
-    // HTTP→HTTPS redirect today — see TODO below.
+    // Every :80 request is 301-redirected to the same host/path/query over
+    // HTTPS. CloudFront is not deployed (enableCloudFront defaults to false),
+    // so browsers hit this ALB directly and plain HTTP used to be served
+    // unencrypted. Nothing depends on :80 — ALB health checks go straight to
+    // the targets, and the keep-warm Lambda already calls https:// URLs.
     //
-    // TODO(security): Migrate HTTP→HTTPS at the listener level (replace the
-    // forward actions below with a 301 redirect to https://{host}{path}).
-    // Was originally written that way (Sprint 3 / S3.5) but the change was
-    // never deployed; reconciled to match live on 2026-05-24 so unrelated
-    // cdk deploys don't apply this surprise. Verify CloudFront covers the
-    // browser path before flipping the switch.
+    // Applied to the live ALB on 2026-09-19 via AWS CLI (cdk deploy was
+    // blocked by pre-existing drift — see DEPLOYMENT_STATUS.md); this code
+    // matches that state.
+    const httpsRedirect = {
+      type: 'redirect',
+      redirectConfig: {
+        protocol: 'HTTPS',
+        port: '443',
+        host: '#{host}',
+        path: '/#{path}',
+        query: '#{query}',
+        statusCode: 'HTTP_301',
+      },
+    };
+
     const httpListener = new elbv2.CfnListener(this, 'HttpListener', {
       loadBalancerArn: alb.loadBalancerArn,
       protocol: elbv2.ApplicationProtocol.HTTP,
       port: 80,
-      defaultActions: [
-        {
-          type: 'forward',
-          targetGroupArn: webTG.ref,
-        },
-      ],
+      defaultActions: [httpsRedirect],
     });
 
-    // Host-based rules on HTTP listener — explicit api.* and www.* matchers
-    // that forward to the appropriate target group. Mirror live state.
+    // Host-based rules on the HTTP listener. They take precedence over the
+    // default action, so they must redirect too — otherwise api.* and www.*
+    // would still be served over plain HTTP. Kept (rather than deleted) so
+    // the CloudFormation-owned resources stay in step with the live ALB.
     const apiListenerRule = new elbv2.CfnListenerRule(this, 'ApiListenerRule', {
       listenerArn: httpListener.ref,
       priority: 100,
@@ -293,12 +299,7 @@ export class SpotterSpaceStack extends Stack {
           },
         },
       ],
-      actions: [
-        {
-          type: 'forward',
-          targetGroupArn: apiTG.ref,
-        },
-      ],
+      actions: [httpsRedirect],
     });
 
     const webListenerRule = new elbv2.CfnListenerRule(this, 'WebListenerRule', {
@@ -312,12 +313,7 @@ export class SpotterSpaceStack extends Stack {
           },
         },
       ],
-      actions: [
-        {
-          type: 'forward',
-          targetGroupArn: webTG.ref,
-        },
-      ],
+      actions: [httpsRedirect],
     });
 
     // ─── HTTPS Listener (443) ──────────────────────────────────────────────
@@ -587,6 +583,45 @@ function handler(event) {
           },
         });
       } // end if (enableCloudFront)
+
+      // ─── Apex → www (when CloudFront is not handling it) ─────────────────
+      // The apex had no DNS record at all, so https://spotterspace.com did not
+      // resolve. Alias it to the ALB and 301 it to www on :443. (:80 needs no
+      // rule: the default action upgrades it to https://spotterspace.com,
+      // which then lands here.) The certificate already covers the apex.
+      // Applied to the live stack on 2026-09-19 via AWS CLI — see the :80
+      // listener note above.
+      if (!enableCloudFront && httpsListener) {
+        new elbv2.CfnListenerRule(this, 'HttpsApexRedirectRule', {
+          listenerArn: httpsListener.ref,
+          priority: 50,
+          conditions: [{ field: 'host-header', hostHeaderConfig: { values: [domainName] } }],
+          actions: [
+            {
+              type: 'redirect',
+              redirectConfig: {
+                protocol: 'HTTPS',
+                port: '443',
+                host: `www.${domainName}`,
+                path: '/#{path}',
+                query: '#{query}',
+                statusCode: 'HTTP_301',
+              },
+            },
+          ],
+        });
+
+        new route53.CfnRecordSet(this, 'ApexAlbAliasRecord', {
+          name: domainName,
+          type: 'A',
+          hostedZoneId,
+          aliasTarget: {
+            hostedZoneId: alb.loadBalancerCanonicalHostedZoneId,
+            dnsName: `dualstack.${alb.loadBalancerDnsName}`,
+            evaluateTargetHealth: false,
+          },
+        });
+      }
 
       // www → ALB (CNAME, always present regardless of CloudFront)
       new route53.CnameRecord(this, 'WwwCnameRecord', {

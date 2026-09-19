@@ -166,4 +166,4 @@ DOMAIN_NAME=spotterspace.com HOSTED_ZONE_ID=Z00113712EMKXVCPQFWZW STAGE=dev \
   npx cdk deploy --require-approval never
 ```
 
-Dev task sizing (as of 2026-05-22): api 512 CPU / 1024 MB, web 256 CPU / 512 MB. The CDK uses separate constants (`apiTaskCpu`, `apiTaskMemory`, `webTaskCpu`, `webTaskMemory`) so they can be tuned independently.
+Dev task sizing (as of 2026-05-25, after the api downsize): api 256 CPU / 512 MB, web 256 CPU / 512 MB. The CDK uses separate constants (`apiTaskCpu`, `apiTaskMemory`, `webTaskCpu`, `webTaskMemory`) so they can be tuned independently.
