@@ -109,7 +109,6 @@ async function seedManufacturers(rows: ManufacturerRow[]) {
 
 async function seedFamilies(rows: FamilyRow[]) {
   let created = 0,
-    updated = 0,
     skipped = 0;
   for (const row of rows) {
     if (!row.name || !row.manufacturer_name) continue;
@@ -123,25 +122,45 @@ async function seedFamilies(rows: FamilyRow[]) {
       skipped++;
       continue;
     }
-    const existing = await prisma.aircraftFamily.findUnique({ where: { name: row.name } });
-    if (existing) {
-      if (existing.manufacturerId !== manufacturer.id) {
-        await prisma.aircraftFamily.update({
-          where: { name: row.name },
-          data: { manufacturerId: manufacturer.id },
-        });
-        updated++;
-      }
-    } else {
+    // Family names are unique per manufacturer only (migration
+    // 20260613223531_relax_aircraft_family_name_unique), so look up by the
+    // compound key. A match is by definition already correct — nothing to update.
+    const existing = await prisma.aircraftFamily.findUnique({
+      where: { name_manufacturerId: { name: row.name, manufacturerId: manufacturer.id } },
+    });
+    if (!existing) {
       await prisma.aircraftFamily.create({
         data: { name: row.name, manufacturerId: manufacturer.id },
       });
       created++;
     }
   }
-  console.log(
-    `  ✅ Families: ${created} created, ${updated} updated, ${skipped} skipped (no manufacturer)`,
-  );
+  console.log(`  ✅ Families: ${created} created, ${skipped} skipped (no manufacturer)`);
+}
+
+/**
+ * Resolves a variants.csv `family_name` to a family row.
+ *
+ * families.csv stores bare names ("A220") while variants.csv mostly uses
+ * "<Manufacturer> <Family>" ("Airbus A220"), so accept both. Because family
+ * names are only unique per manufacturer, a bare name is used only when it
+ * is unambiguous.
+ */
+async function findFamily(ref: string) {
+  const manufacturers = await prisma.aircraftManufacturer.findMany({
+    select: { id: true, name: true },
+  });
+  for (const m of manufacturers) {
+    if (!ref.startsWith(`${m.name} `)) continue;
+    const family = await prisma.aircraftFamily.findUnique({
+      where: {
+        name_manufacturerId: { name: ref.slice(m.name.length + 1), manufacturerId: m.id },
+      },
+    });
+    if (family) return family;
+  }
+  const bare = await prisma.aircraftFamily.findMany({ where: { name: ref }, take: 2 });
+  return bare.length === 1 ? bare[0] : null;
 }
 
 async function seedVariants(rows: VariantRow[]) {
@@ -150,7 +169,7 @@ async function seedVariants(rows: VariantRow[]) {
     skipped = 0;
   for (const row of rows) {
     if (!row.name || !row.family_name) continue;
-    const family = await prisma.aircraftFamily.findUnique({ where: { name: row.family_name } });
+    const family = await findFamily(row.family_name);
     if (!family) {
       console.warn(`  ⚠️  Variant "${row.name}": family "${row.family_name}" not found, skipping`);
       skipped++;
