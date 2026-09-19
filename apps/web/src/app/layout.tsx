@@ -142,9 +142,14 @@ export default async function RootLayout({
           <Header />
           <main style={{ flex: 1 }}>{children}</main>
           <Footer />
+          {/*
+            Must render INSIDE <Providers>: AdSenseLoader calls urql's
+            useQuery and both components call useConsent, so they need the
+            UrqlProvider and ConsentProvider contexts that Providers supplies.
+          */}
+          <AdSenseLoader />
+          <CookieConsent />
         </Providers>
-        <AdSenseLoader />
-        <CookieConsent />
       </body>
     </html>
   );
