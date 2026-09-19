@@ -97,7 +97,7 @@ export const likeMutationResolvers = {
 
     // Delete if exists, no-op if not (idempotent).
     // Wrap in a transaction to prevent race-condition double-decrement.
-    const deleted = await ctx.prisma.$transaction(async (tx) => {
+    await ctx.prisma.$transaction(async (tx) => {
       const result = await tx.like.deleteMany({
         where: { userId, photoId: args.photoId },
       });

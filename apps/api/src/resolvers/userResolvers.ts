@@ -2,7 +2,7 @@ import { GraphQLError } from 'graphql';
 
 import { requireAuth } from '../auth/requireAuth.js';
 import type { Context } from '../context.js';
-import { decodeCursor, encodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
+import { encodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

@@ -1,10 +1,10 @@
 import { ApolloServer } from '@apollo/server';
 import type { GraphQLRequest } from '@apollo/server';
 
+import { validateJwtSecret } from './auth/validateSecret.js';
 import { type Context } from './context.js';
 import { resolvers } from './resolvers.js';
 import { typeDefs } from './schema.js';
-import { validateJwtSecret } from './auth/validateSecret.js';
 
 // Singleton server instance for Lambda cold-start efficiency
 let server: ApolloServer<Context> | null = null;

@@ -98,7 +98,7 @@ describe('Auth: requestPasswordReset timing oracle', () => {
     );
 
     // Diagnostic logging in case the assertion fails on CI
-    // eslint-disable-next-line no-console
+
     console.log(`[timing] hit=${hitMedian.toFixed(1)}ms  miss=${missMedian.toFixed(1)}ms`);
 
     // The miss path must take at least a quarter of the hit path. Without

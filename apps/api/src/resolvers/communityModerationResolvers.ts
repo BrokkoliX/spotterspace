@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 
 import type { Context } from '../context.js';
-import { decodeCursor, encodeCursor, getDbUser, buildPaginationArgs } from '../utils/resolverHelpers.js';
+import { encodeCursor, getDbUser, buildPaginationArgs } from '../utils/resolverHelpers.js';
 
 // Reuse roleWeight from communityResolvers — keep in sync
 function roleWeight(role: string): number {
@@ -84,7 +84,10 @@ export const communityModerationMutationResolvers = {
     const isSuperuser = dbUser.role === 'superuser';
 
     const callerMembership = await getMembership(ctx, args.communityId, dbUser.id);
-    if (!isSuperuser && (!callerMembership || !['owner', 'admin'].includes(callerMembership.role))) {
+    if (
+      !isSuperuser &&
+      (!callerMembership || !['owner', 'admin'].includes(callerMembership.role))
+    ) {
       throw new GraphQLError('Only community owners and admins can ban members', {
         extensions: { code: 'FORBIDDEN' },
       });
@@ -146,7 +149,10 @@ export const communityModerationMutationResolvers = {
     const isSuperuser = dbUser.role === 'superuser';
 
     const callerMembership = await getMembership(ctx, args.communityId, dbUser.id);
-    if (!isSuperuser && (!callerMembership || !['owner', 'admin'].includes(callerMembership.role))) {
+    if (
+      !isSuperuser &&
+      (!callerMembership || !['owner', 'admin'].includes(callerMembership.role))
+    ) {
       throw new GraphQLError('Only community owners and admins can unban members', {
         extensions: { code: 'FORBIDDEN' },
       });

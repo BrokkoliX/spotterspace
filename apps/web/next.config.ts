@@ -43,6 +43,12 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    // Next 16 refuses to optimize images whose host resolves to a private IP
+    // (SSRF guard) — and `localhost` always does. Without this the LocalStack
+    // remotePattern below matches but every optimized image 400s with
+    // '"url" parameter is not allowed'. Dev only, same gate as that pattern,
+    // so production keeps the protection.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV !== 'production',
     remotePatterns: [
       ...(process.env.NODE_ENV !== 'production'
         ? [

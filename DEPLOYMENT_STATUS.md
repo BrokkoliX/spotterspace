@@ -31,8 +31,8 @@
         ┌──────────────────────────────────────┐
         │   www.spotterspace.com (CNAME → ALB) │
         │   api.spotterspace.com (CNAME → ALB) │
-        │   spotterspace.com  (no record — apex│
-        │   not served; visit www. instead)    │
+        │   spotterspace.com  (A alias → ALB,  │
+        │   301 → www; HTTP 301 → HTTPS)       │
         └──────────────────────────────────────┘
                        │
                        ▼
@@ -70,7 +70,7 @@ Photo CDN: d2ur47prd8ljwz.cloudfront.net → s3://spotterhub-photos
 | API GraphQL | https://api.spotterspace.com/graphql | ✅     |
 | API Health  | https://api.spotterspace.com/health  | ✅     |
 
-> **Apex note:** `https://spotterspace.com` (no `www.`) is not served. The Route 53 zone has no A/CNAME record at the apex, and there is no CloudFront distribution performing an apex-to-www redirect. Earlier revisions of this document referenced one, but that infrastructure was never deployed to production. If apex-to-www becomes important, add a CloudFront distribution + Route 53 alias as a follow-up.
+> **Apex and HTTP (2026-09-19):** `spotterspace.com` is a Route 53 alias A record to the ALB, and a `:443` listener rule (priority 50) 301-redirects it to `https://www.spotterspace.com`. Every `:80` request — default action and the `api.*`/`www.*` host rules — 301-redirects to the same host/path over HTTPS; previously plain HTTP was served unencrypted. CloudFront is still not deployed (`enableCloudFront` is false). Applied with `scripts/alb-https-apex.sh` (`plan` / `apply` / `verify` / `rollback`) because `cdk deploy` is blocked by drift — see [CDK Drift Warning](#cdk-drift-warning).
 
 ### Key AWS Resources
 
@@ -473,7 +473,9 @@ CMD ["node", "apps/web/apps/web/server.js"]
 | `www.spotterspace.com` | CNAME | ALB DNS name |
 | `api.spotterspace.com` | CNAME | ALB DNS name |
 
-The apex `spotterspace.com` has no A or CNAME record. Visiting it directly does not resolve to the application; use `www.` instead. See the Architecture Overview note above for follow-up if apex-to-www redirect is needed.
+| `spotterspace.com` | A (alias) | ALB — redirected to `www.` by a `:443` listener rule |
+
+The apex record and its redirect rule were added on 2026-09-19 by `scripts/alb-https-apex.sh`; see the Architecture Overview note above.
 
 **SSL:** ACM certificate covers `spotterspace.com` + `*.spotterspace.com`, DNS-validated via Route 53.
 
@@ -615,7 +617,7 @@ aws ecr put-lifecycle-policy --repository-name spotterspace-dev-api \
 Three follow-up items remain before `cdk deploy` is safe again:
 
 1. The five CloudWatch alarms and the `spotterspace-dev-alarms` SNS topic exist in AWS but not in CloudFormation. Running `cdk deploy` will fail with "already exists" errors until they are adopted via `cdk import`. Until then, treat them as CLI-managed.
-2. The HTTP→HTTPS redirect was originally added to CDK but never deployed; live state forwards HTTP straight to the web target group. The CDK source now matches live; restore the redirect after coordinating with `deploy.yml` so the change actually deploys.
+2. ~~The HTTP→HTTPS redirect was never deployed.~~ Done 2026-09-19 via `scripts/alb-https-apex.sh`, and CDK source updated to match (`HttpListener`, `ApiListenerRule`, `WebListenerRule` now redirect). Those three are CloudFormation-owned, so the next `cdk deploy` simply confirms them. The same change **added two resources outside CloudFormation** — the `:443` apex redirect rule (`HttpsApexRedirectRule`) and the apex A record (`ApexAlbAliasRecord`). Like the alarms in item 1, they are in CDK source but must be adopted with `cdk import` before `cdk deploy`, or it will fail with a name/priority conflict.
 3. `WEB_BASE_URL` (and any other env var added to CDK) will be silently dropped on next deploy because `deploy.yml` registers task definitions by copying env vars from the previous revision. Either move task definition management entirely to CDK, or update `deploy.yml` to read env vars from a CDK CfnOutput.
 
 ### ECS Task Status

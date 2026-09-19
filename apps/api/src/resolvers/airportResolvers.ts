@@ -26,7 +26,7 @@ export const airportQueryResolvers = {
     args: { first?: number; after?: string; page?: number },
     ctx: Context,
   ) => {
-    const { skip, take, cursorWhere } = buildPaginationArgs({
+    const { skip, take } = buildPaginationArgs({
       first: args.first,
       after: args.after,
       page: args.page,

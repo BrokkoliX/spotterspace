@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@spotterspace/eslint-config": "*",
-    "eslint": "^8.57.0",
+    "eslint": "^9.39.4",
     "prisma": "^6.2.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0"

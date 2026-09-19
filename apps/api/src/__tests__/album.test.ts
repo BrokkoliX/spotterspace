@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Context } from '../context.js';
 
 import {
@@ -34,7 +33,9 @@ beforeEach(cleanDatabase);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-async function createUser(overrides: Partial<{ cognitoSub: string; username: string; email: string }> = {}) {
+async function createUser(
+  overrides: Partial<{ cognitoSub: string; username: string; email: string }> = {},
+) {
   return prisma.user.create({
     data: {
       cognitoSub: overrides.cognitoSub ?? 'sub-album-owner',
@@ -44,7 +45,10 @@ async function createUser(overrides: Partial<{ cognitoSub: string; username: str
   });
 }
 
-async function createAlbumInDb(userId: string, overrides: Partial<{ title: string; description: string; isPublic: boolean }> = {}) {
+async function createAlbumInDb(
+  userId: string,
+  overrides: Partial<{ title: string; description: string; isPublic: boolean }> = {},
+) {
   return prisma.album.create({
     data: {
       userId,
@@ -134,7 +138,10 @@ describe('createAlbum', () => {
   it('creates an album', async () => {
     await createUser();
     const res = await server.executeOperation(
-      { query: CREATE_ALBUM, variables: { input: { title: 'My Album', description: 'Cool photos' } } },
+      {
+        query: CREATE_ALBUM,
+        variables: { input: { title: 'My Album', description: 'Cool photos' } },
+      },
       { contextValue: ctx(AUTH_USER) },
     );
     const data = (res.body as any).singleResult.data;
@@ -195,7 +202,10 @@ describe('updateAlbum', () => {
     const album = await createAlbumInDb(user.id);
 
     const res = await server.executeOperation(
-      { query: UPDATE_ALBUM, variables: { id: album.id, input: { title: 'Renamed', description: 'Updated desc' } } },
+      {
+        query: UPDATE_ALBUM,
+        variables: { id: album.id, input: { title: 'Renamed', description: 'Updated desc' } },
+      },
       { contextValue: ctx(AUTH_USER) },
     );
     const data = (res.body as any).singleResult.data;
@@ -320,9 +330,13 @@ describe('addPhotosToAlbum', () => {
     expect(data.addPhotosToAlbum.photoCount).toBe(2);
   });
 
-  it('rejects adding other user\'s photos', async () => {
+  it("rejects adding other user's photos", async () => {
     const user = await createUser();
-    const otherUser = await createUser({ cognitoSub: 'sub-album-other', username: 'other', email: 'other@test.com' });
+    const otherUser = await createUser({
+      cognitoSub: 'sub-album-other',
+      username: 'other',
+      email: 'other@test.com',
+    });
     const album = await createAlbumInDb(user.id);
     const otherPhoto = await createPhotoInDb(otherUser.id);
 
@@ -383,7 +397,10 @@ describe('removePhotosFromAlbum', () => {
 describe('album query', () => {
   it('returns album with all fields', async () => {
     const user = await createUser();
-    const album = await createAlbumInDb(user.id, { title: 'KSEA Shots', description: 'Seattle spotting' });
+    const album = await createAlbumInDb(user.id, {
+      title: 'KSEA Shots',
+      description: 'Seattle spotting',
+    });
     await createPhotoInDb(user.id, album.id);
 
     const res = await server.executeOperation(
@@ -411,7 +428,7 @@ describe('album query', () => {
 // ─── albums query ───────────────────────────────────────────────────────────
 
 describe('albums query', () => {
-  it('returns user\'s public albums to non-owner', async () => {
+  it("returns user's public albums to non-owner", async () => {
     const user = await createUser();
     await createAlbumInDb(user.id, { title: 'Public' });
     await createAlbumInDb(user.id, { title: 'Private', isPublic: false });
@@ -438,7 +455,7 @@ describe('albums query', () => {
     expect(data.albums.totalCount).toBe(2);
   });
 
-  it('defaults to authenticated user\'s albums when no userId', async () => {
+  it("defaults to authenticated user's albums when no userId", async () => {
     const user = await createUser();
     await createAlbumInDb(user.id, { title: 'Mine' });
 

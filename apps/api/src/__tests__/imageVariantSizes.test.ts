@@ -1,6 +1,5 @@
-import { describe, it, expect } from 'vitest';
-
 import { IMAGE_VARIANT_SIZES } from '@spotterspace/shared';
+import { describe, it, expect } from 'vitest';
 
 import { s3KeyFromOriginalUrl } from '../scripts/backfillDisplayVariants.js';
 

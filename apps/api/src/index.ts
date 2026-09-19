@@ -3,19 +3,19 @@ import 'dotenv/config';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express4';
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import helmet from 'helmet';
 import { prisma } from '@spotterspace/db';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import helmet from 'helmet';
 import jwt from 'jsonwebtoken';
 
+import { constantTimeCompare, validateJwtSecret } from './auth/validateSecret.js';
 import { createContext, type Context } from './context.js';
 import { resolvers } from './resolvers.js';
 import { typeDefs } from './schema.js';
 import { ensureBucket } from './services/s3.js';
-import { constantTimeCompare, validateJwtSecret } from './auth/validateSecret.js';
 
 const PORT = parseInt(process.env.API_PORT ?? '4000', 10);
 
@@ -136,7 +136,7 @@ async function main() {
     keyGenerator: (req) => {
       const body = req.body as { variables?: { email?: string } } | undefined;
       const email = body?.variables?.email?.toLowerCase();
-      return email ? `email:${email}` : `ip:${req.ip}`;
+      return email ? `email:${email}` : `ip:${ipKeyGenerator(req.ip ?? '')}`;
     },
   });
 
@@ -311,8 +311,11 @@ async function main() {
           // fall through to IP-based
         }
       }
-      // Fall back to IP for unauthenticated requests
-      return `ip:${req.ip}`;
+      // Fall back to IP for unauthenticated requests. ipKeyGenerator collapses
+      // an IPv6 address to its /56 subnet — a single IPv6 client controls a
+      // whole block, so keying on the raw address would let it rotate
+      // addresses to dodge the limit.
+      return `ip:${ipKeyGenerator(req.ip ?? '')}`;
     },
   });
 

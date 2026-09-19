@@ -2,7 +2,7 @@ import { GraphQLError } from 'graphql';
 
 import { requireAuth, requireRole } from '../auth/requireAuth.js';
 import type { Context } from '../context.js';
-import { encodeCursor, decodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
+import { encodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -182,7 +182,6 @@ export const contactMessageMutationResolvers = {
 export const contactMessageFieldResolvers = {
   ContactMessage: {
     createdAt: (parent: { createdAt: Date }) => parent.createdAt.toISOString(),
-    reviewedAt: (parent: { reviewedAt: Date | null }) =>
-      parent.reviewedAt?.toISOString() ?? null,
+    reviewedAt: (parent: { reviewedAt: Date | null }) => parent.reviewedAt?.toISOString() ?? null,
   },
 };

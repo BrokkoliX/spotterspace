@@ -30,3 +30,14 @@ if (!testDatabaseUrl) {
 }
 
 process.env.DATABASE_URL = testDatabaseUrl;
+
+// Pin dummy AWS credentials so the suite is hermetic. getUploadUrl and
+// friends presign S3 URLs locally (no network call), but signing still needs
+// *some* credentials. Without these, CI failed with "Could not load
+// credentials from any providers", while locally the SDK silently fell back
+// to the developer's real ~/.aws credentials. Env credentials take precedence
+// over ~/.aws in the default provider chain, so tests can never sign with, or
+// send, real keys.
+process.env.AWS_ACCESS_KEY_ID = 'test';
+process.env.AWS_SECRET_ACCESS_KEY = 'test';
+process.env.AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';

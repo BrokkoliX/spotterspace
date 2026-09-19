@@ -8,12 +8,13 @@ import {
 import { GraphQLError } from 'graphql';
 
 import { requireAuth, requireRole } from '../auth/requireAuth.js';
-import { getDbUser } from '../utils/resolverHelpers.js';
 import type { Context } from '../context.js';
 import { generateVariants, getSharp } from '../services/imageProcessing.js';
 import { getObjectUrl, getPresignedUploadUrl } from '../services/s3.js';
-import { decodeCursor, encodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
+import { getDbUser } from '../utils/resolverHelpers.js';
+import { encodeCursor, buildPaginationArgs } from '../utils/resolverHelpers.js';
 import { validateStringLength, validateArrayLength } from '../utils/validation.js';
+
 import { checkAndAwardBadges } from './badgeResolvers.js';
 import { createNotification } from './notificationResolvers.js';
 

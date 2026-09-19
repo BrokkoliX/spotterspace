@@ -28,6 +28,11 @@ import {
 } from './resolvers/albumResolvers.js';
 import { authMutationResolvers } from './resolvers/authResolvers.js';
 import {
+  badgeFieldResolvers,
+  badgeMutationResolvers,
+  badgeQueryResolvers,
+} from './resolvers/badgeResolvers.js';
+import {
   categoryFieldResolvers,
   categoryMutationResolvers,
   categoryQueryResolvers,
@@ -48,6 +53,11 @@ import {
   communityMutationResolvers,
   communityQueryResolvers,
 } from './resolvers/communityResolvers.js';
+import {
+  contactMessageQueryResolvers,
+  contactMessageMutationResolvers,
+  contactMessageFieldResolvers,
+} from './resolvers/contactMessageResolvers.js';
 import {
   communityEventFieldResolvers,
   eventAttendeeFieldResolvers,
@@ -90,16 +100,6 @@ import {
   notificationMutationResolvers,
   notificationQueryResolvers,
 } from './resolvers/notificationResolvers.js';
-import {
-  contactMessageQueryResolvers,
-  contactMessageMutationResolvers,
-  contactMessageFieldResolvers,
-} from './resolvers/contactMessageResolvers.js';
-import {
-  badgeFieldResolvers,
-  badgeMutationResolvers,
-  badgeQueryResolvers,
-} from './resolvers/badgeResolvers.js';
 import {
   pendingListItemFieldResolvers,
   pendingListItemMutationResolvers,

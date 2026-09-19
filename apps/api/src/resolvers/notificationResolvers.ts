@@ -2,12 +2,7 @@ import { Prisma } from '@spotterspace/db';
 import { GraphQLError } from 'graphql';
 
 import type { Context } from '../context.js';
-import {
-  decodeCursor,
-  encodeCursor,
-  resolveUserId,
-  buildPaginationArgs,
-} from '../utils/resolverHelpers.js';
+import { encodeCursor, resolveUserId, buildPaginationArgs } from '../utils/resolverHelpers.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
